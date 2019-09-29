@@ -15,7 +15,17 @@ FireplaceRF::FireplaceRF(int pin)
   //delayMicroseconds(13000);
 }
 
-void FireplaceRF::transmit(const unsigned long msg[], const unsigned int msgSize, const unsigned int msgByte, const unsigned int endDelay) 
+void FireplaceRF::transmitRaw(const unsigned long msg[], const unsigned int msgSize)
+{
+  for (int y = 0; y < msgSize; y++){
+    digitalWrite(outPin,pinState);
+    unsigned long z = msg[y];
+    delayMicroseconds(z);
+    pinState = !pinState;
+  }
+}
+
+void FireplaceRF::transmit(const unsigned long msg[], const unsigned int msgSize, const unsigned int msgByte, const unsigned int endDelay)
 {
   for (int y = 0; y < msgSize; y++){
     digitalWrite(outPin,pinState);
@@ -34,11 +44,12 @@ void FireplaceRF::sendMsg(int msg, int val)
   // msg: ON = 0, OFF = 1, FAN = 2, FLAME = 3
   pinState = 1;
   noInterrupts();
-  for (int x = 1; x <= MSG_REPEAT; x++) {
-    transmit(header, HEAD_SIZE, HEAD_BYTE, HEAD_BREAK);
+
+  for (int x = 0; x < MSG_REPEAT; x++) {
+    transmitRaw(header, sizeof(header) / sizeof(long));
     for (int y = 0; y < 3; y++) {
-      transmit(start[y], BODY_SIZE, BODY_BYTE, BODY_BREAK);
-    }      
+      transmit(start_cmd[y], BODY_SIZE, BODY_BYTE, BODY_BREAK);
+    }
     for (int z = 0; z < 3; z++) {
       switch(msg) {
         case 0 :
@@ -58,14 +69,14 @@ void FireplaceRF::sendMsg(int msg, int val)
       }
       transmit(value[val][z], VAL_SIZE, BODY_BYTE, BODY_BREAK);
     }
-    if (x < MSG_REPEAT) {
+    if (x < (MSG_REPEAT - 1)) {
       unsigned long END_DELAY = MSG_BREAK;
       while (END_DELAY > MAX_DELAY) {
         delayMicroseconds(MAX_DELAY);
         END_DELAY = END_DELAY - MAX_DELAY;
       }
       delayMicroseconds(END_DELAY);
-    }      
+    }
   }
   interrupts();
 }
@@ -105,3 +116,4 @@ void FireplaceRF::setFlame(int level)
 {
   sendMsg(3,level);
 }
+
